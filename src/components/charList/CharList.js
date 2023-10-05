@@ -1,67 +1,62 @@
-import {Component, createRef} from "react";
+import {useEffect, useState} from "react";
 import './charList.scss';
 import MarvelService from "../../services/MarvelService";
 import ErrorMessage from "../errorMessage/ErrorMessage";
 import Spinner from "../spinner/Spinner";
 
-export default class CharList extends Component {
-    state = {
-        charList: [],
-        loading: true,
-        error: false,
-        offset: 1536,
-        loadingMoreCharList: false,
-        charListEnded: false
-    };
+const CharList = ({onCharSelected}) => {
+    const [charList, setCharList] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [isError, setIsError] = useState(false);
+    const [isCharListEnded, setIsCharListEnded] = useState(false);
+    const [offset, setOffset] = useState(1535);
 
-    marvelService = new MarvelService();
+    const marvelService = new MarvelService();
 
-    componentDidMount() {
-        this.fetchCharList();
+    useEffect(() => {
+        fetchCharList();
+    }, []);
+
+    const fetchCharList = (offset) => {
+        onCharListLoading();
+
+        marvelService.getAllCharacters(offset)
+            .then(onCharListLoaded)
+            .catch(onError);
     }
 
-    onCharListLoading = () => {
-        this.setState({
-            loadingMoreCharList: true
-        });
+    const onCharListLoading = () => {
+        setIsLoadingMore(true);
     }
 
-    onCharListLoaded = (newCharList) => {
-        let charListEnded = false;
+    const onCharListLoaded = (newCharList) => {
+        let isCharListEnded = false;
 
         if (newCharList.length < 9) {
-            charListEnded = true;
+            isCharListEnded = true;
         }
 
-        this.setState((prevState) => ({
-            charList: [...prevState.charList, ...newCharList],
-            loading: false,
-            loadingMoreCharList: false,
-            offset: prevState.offset + 9,
-            charListEnded
-        }));
+        setCharList((prevState) => [...prevState, ...newCharList]);
+        setIsLoading(false);
+        setIsLoadingMore(false);
+        setOffset((prevState) => prevState + 9);
+        setIsCharListEnded(isCharListEnded);
     }
 
-    onError = () => {
-        this.setState({
-            error: true,
-            loading: false,
-        });
+    const onError = () => {
+        setIsError(true);
+        setIsLoading(false);
     }
 
-    fetchCharList = (offset) => {
-        this.onCharListLoading();
 
-        this.marvelService.getAllCharacters(offset)
-            .then(this.onCharListLoaded)
-            .catch(this.onError);
-    }
+    // change to useRef
+    const refItems = [];
+    const setRefItems = (elem) => refItems.push(elem);
 
-    refItems = [];
-    setRefItems = (elem) => this.refItems.push(elem);
-
-    renderCharList = () => {
-        const charList = this.state.charList.map(({id, name, thumbnail}, i) => {
+    // check this func
+    const renderCharList = () => {
+        const renderItems = charList.map(({id, name, thumbnail}, i) => {
             let imgStyle = {objectFit: 'cover'};
 
             if (thumbnail === 'http://i.annihil.us/u/prod/marvel/i/mg/b/40/image_not_available.jpg') {
@@ -69,10 +64,10 @@ export default class CharList extends Component {
             }
 
             const handleClick = () => {
-                this.props.onCharSelected(id);
+                onCharSelected(id);
 
-                this.refItems.forEach((ref) => ref.classList.remove('char__item_selected'));
-                this.refItems[i].classList.add('char__item_selected');
+                refItems.forEach((ref) => ref.classList.remove('char__item_selected'));
+                refItems[i].classList.add('char__item_selected');
             }
 
             return (
@@ -80,7 +75,7 @@ export default class CharList extends Component {
                     key={id}
                     className="char__item"
                     onClick={handleClick}
-                    ref={this.setRefItems}
+                    ref={setRefItems}
                     tabIndex={0}
                 >
                     <img src={thumbnail} alt={name} style={imgStyle}/>
@@ -88,34 +83,33 @@ export default class CharList extends Component {
                 </li>
             )
         });
+
         return (
             <ul className="char__grid">
-                {charList}
+                {renderItems}
             </ul>
         );
     }
 
-    render() {
-        const {loading, error, offset, loadingMoreCharList, charListEnded} = this.state;
+    const errorMessage = isError ? <ErrorMessage/> : null;
+    const spinner = isLoading ? <Spinner/> : null;
+    const content = !(isError || isLoading) ? renderCharList() : null;
 
-        const errorMessage = error ? <ErrorMessage/> : null;
-        const spinner = loading ? <Spinner/> : null;
-        const content = !(error || loading) ? this.renderCharList() : null;
-
-        return (
-            <div className="char__list">
-                {errorMessage}
-                {spinner}
-                {content}
-                <button
-                    className="button button__main button__long"
-                    onClick={() => this.fetchCharList(offset)}
-                    disabled={loadingMoreCharList}
-                    style={{display: charListEnded ? 'none' : 'display'}}
-                >
-                    <div className="inner">load more</div>
-                </button>
-            </div>
-        )
-    }
+    return (
+        <div className="char__list">
+            {errorMessage}
+            {spinner}
+            {content}
+            <button
+                className="button button__main button__long"
+                onClick={() => fetchCharList(offset)}
+                disabled={isLoadingMore}
+                style={{display: isCharListEnded ? 'none' : 'display'}}
+            >
+                <div className="inner">load more</div>
+            </button>
+        </div>
+    )
 }
+
+export default CharList;
