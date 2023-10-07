@@ -3,31 +3,25 @@ import './charList.scss';
 import MarvelService from "../../services/MarvelService";
 import ErrorMessage from "../errorMessage/ErrorMessage";
 import Spinner from "../spinner/Spinner";
+import {useMarvelService} from "../../hooks/useMarvelService";
 
 const CharList = ({onCharSelected}) => {
     const [charList, setCharList] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const [isError, setIsError] = useState(false);
     const [isCharListEnded, setIsCharListEnded] = useState(false);
-    const [offset, setOffset] = useState(1535);
+    const [offset, setOffset] = useState(210);
 
-    const marvelService = new MarvelService();
+    const {isLoading, isError, getAllCharacters} = useMarvelService();
 
     useEffect(() => {
-        fetchCharList();
+        fetchCharList(offset, true);
     }, []);
 
-    const fetchCharList = (offset) => {
-        onCharListLoading();
+    const fetchCharList = (offset, initialLoading) => {
+        initialLoading ? setIsLoadingMore(false) : setIsLoadingMore(true);
 
-        marvelService.getAllCharacters(offset)
-            .then(onCharListLoaded)
-            .catch(onError);
-    }
-
-    const onCharListLoading = () => {
-        setIsLoadingMore(true);
+        getAllCharacters(offset)
+            .then(onCharListLoaded);
     }
 
     const onCharListLoaded = (newCharList) => {
@@ -38,17 +32,10 @@ const CharList = ({onCharSelected}) => {
         }
 
         setCharList((prevState) => [...prevState, ...newCharList]);
-        setIsLoading(false);
         setIsLoadingMore(false);
         setOffset((prevState) => prevState + 9);
         setIsCharListEnded(isCharListEnded);
     }
-
-    const onError = () => {
-        setIsError(true);
-        setIsLoading(false);
-    }
-
 
     // change to useRef
     const refItems = [];
@@ -91,23 +78,25 @@ const CharList = ({onCharSelected}) => {
         );
     }
 
-    const errorMessage = isError ? <ErrorMessage/> : null;
-    const spinner = isLoading ? <Spinner/> : null;
-    const content = !(isError || isLoading) ? renderCharList() : null;
+    const error = isError ? <ErrorMessage/> : null;
+    const spinner = isLoading && !isLoadingMore ? <Spinner/> : null;
+    const content = renderCharList();
 
     return (
         <div className="char__list">
-            {errorMessage}
+            {error}
             {spinner}
             {content}
-            <button
-                className="button button__main button__long"
-                onClick={() => fetchCharList(offset)}
-                disabled={isLoadingMore}
-                style={{display: isCharListEnded ? 'none' : 'display'}}
-            >
-                <div className="inner">load more</div>
-            </button>
+            {!error && (
+                <button
+                    className="button button__main button__long"
+                    onClick={() => fetchCharList(offset)}
+                    disabled={isLoadingMore}
+                    style={{display: isCharListEnded ? 'none' : 'display'}}
+                >
+                    <div className="inner">load more</div>
+                </button>
+            )}
         </div>
     )
 }
